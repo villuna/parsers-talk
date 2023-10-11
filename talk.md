@@ -13,7 +13,6 @@
 
 Intro - in google doc
 
-
 # 1. High level overview
 
 Today's topic is of course, parser combinators. Parser combinators are a way of creating parsers in a programmatic way, that allow us to write such parsers in a declarative fashion. We essentially just tell the computer the structure of the language we want to understand, as well as some extra code to turn strings into some data the computer can understand, and it kind of "writes the parser for us". This isn't code generation or parser generators or anything fancy either, we're going to be able to achieve this with some plain old functions.
@@ -90,3 +89,99 @@ This defines the structure of our format, much like regex, except in this case w
 TODO: Research the technical definition of grammars so you can give something more rigorous
 
 ## 1.2 Grammars into parsers
+
+So we have a way of thinking critically about our text formats. It's definitely interesting and gives us some insight about our format, but how do we turn this into a parser? Actually, there are many ways, including parser generators that will take a grammar and automatically generate a parser program for you, but today we're going to be looking at a more manual method of parsing, which is called recursive descent.
+
+Recursive descent is a method of parsing that revolves around functions. For each terminal symbol in our grammar, we write a function that parses that symbol - that is to say, it analyses a string and turns it into some data the computer can understand.
+
+The functions have this kind of type signature:
+
+```
+parser(String) -> (ParsedType, String) | Error
+```
+
+Let's break this down quickly. First, the function takes in a string (no surprises there). It then parses *as much as it can* from the string (starting at the beginning), and returns it along with whatever it *didn't* parse. Of course, parsers can also fail, and if that happens we instead return an error type.
+
+Now, you might wonder why we aren't parsing the whole string, and why we return what wasn't parsed. This allows us to chain multiple parsers together. Remember how in the definition of our grammar, we listed symbols left to right? If you want to be able to parse a grammar like this:
+
+```
+symbol ::= a b
+```
+
+First, we parse symbol a. If that succeeded, then we run parser b on the rest of the input that wasn't consumed by a. *That's* the reason we return the unconsumed input.
+
+Let's think about an example. Imagine we had a parser that parsed integers, and we gave it the string "123". Then we should expect it to return the integer one hundred and twenty three, along with an empty string - that is to say, it consumed all the input.
+
+What if we gave it the string "123 abc"? We should expect it to succeed with the value 123 again, and this time the unconsumed output is " abc". Also notice that even though "1" and "12" are both valid integers, this parser consumed the longest valid string from the front - "123".
+
+And now what about "abc123"? Error. It doesn't start with a valid integer.
+
+With this definition, we now have some direction as to how to turn a grammar into a parser. We start by writing functions for all the smaller symbols, things that can be easily handled by a manual parsing method like string functions or regex, and then we build larger and larger parsers by combining smaller ones.
+
+Already this has a lot of advantages over manual parsing methods - it can easily handle recursive formats as recursion is one of the basic uses of functions, it allows us to reuse a lot of common code, and it's a very programmatic method of turning a grammar directly into a parser.
+
+Now the sharp-eared among us will note that I haven't yet mentioned "parser combinators" - don't worry, they're coming. But still, I think it's time we took our first step into the realm of real programming languages and actually implement a recursive descent parser.
+
+Well, actually I lied, we're not going to be looking at a real programming language yet.
+
+## 2 - Javascript
+
+Because we're going to do it in Javascript.
+
+Javascript is a language invented in 1995 for the web browser Netscape Navigator to allow programmers to add scripts to their websites and has somehow failed upwards to become the backbone of the entire world's web infrastructure.
+
+Surprisingly, I kinda like Javascript, and we'll come to see that it's actually not such a bad choice for building a parser (if you ignore things like "performance" and if you really can't get enough of debugging runtime errors). But I legitimately do like Javascript, just, for what it was made for, which is clientside website scripts.
+
+Fun fact! I ran into a nasty bug in my code because apparently:
+
+```js
+list.push[element];
+```
+
+Isn't a syntax error, but it silently does nothing. `:)`
+
+But Javascript is perfect for this because it's very simple and it'll allow us to learn the basics before we go all fancy schmancy with a more sophisticated language.
+
+Remember a few minutes ago when I told you about this grammar that parses nested lists? Let's write a recursive descent parser to do that!
+
+The first question to ask is, what does our parser type look like in this language? Javascript is a very weakly typed language, so we have a lot of freedom in how to define things, but what I came up with is something like this:
+
+```js
+function parser(input/*: string*/) {
+    if (success) {
+        return {
+            value: /* ... */,
+            input:  /* ... */
+        };
+    }
+
+    if (error) {
+        throw "error message";
+    }
+}
+```
+
+I'm sorry, I don't know typescript. Save your hunger for the rust portion.
+
+Javascript doesn't have tuples, it basically just has maps (in fact, arrays in javascript are also basically just maps), so let's instead us a javascript object so we can give our values nice names. Also, while we could return some error type, the standard way to handle errors in js is through exceptions, so let's go with this; it'll make our code a lot simpler. Also note that you can literally throw anything in javascript! Doesn't have to be an error type. That's pretty cool. Maybe kind of terrifying too.
+
+Looking at our grammar, the simplest symbol is probably a character, so lets look at that. Writing a parser function for this is simple enough:
+
+```js
+function letter(input) {
+    if (input.length == 0) {
+        throw "letter: input not long enough!";
+    }
+
+    if (input[0] >= 'a' && input[0] <= 'z') {
+        return {
+            value: input[0],
+            input: input.slice(1),
+        }
+    }
+
+    throw "letter: next char was not a letter!";
+}
+```
+
+We just chomp off the next character if it is a to z, and return it. Otherwise error. Pretty easy.
