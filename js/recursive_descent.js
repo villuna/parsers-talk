@@ -14,6 +14,7 @@ function letter(input) {
     throw "letter: next char was not a letter!";
 }
 
+// nonEmptyInnerList ::= element {", " element}
 function nonEmptyInnerList(input) {
     let value;
     ({value, input} = element(input)); 
@@ -36,7 +37,7 @@ function nonEmptyInnerList(input) {
     };
 }
 
-// innerList ::= element {", " element} | empty
+// innerList ::= [ nonEmptyInnerList ]
 function innerList(input) {
     try {
         return nonEmptyInnerList(input);    
@@ -49,30 +50,48 @@ function innerList(input) {
     }
 }
 
-// list ::= "[" inner_list "]"
-function list(input) {
+function openBracket(input) {
     if (!input.startsWith("[")) {
-        throw "list: expected \"[\"";
-    }
-
-    input = input.slice(1);
-
-    let value;
-
-    // did you know that js has destructuring assignments?
-    ({input, value} = innerList(input));
-
-    if (!input.startsWith("]")) {
-        throw "list: expected \"]\"";
+        throw "openBracket: expected \"[\"";
     }
 
     return {
-        value,
+        value: null,
         input: input.slice(1),
+    };
+}
+
+function closeBracket(input) {
+    if (!input.startsWith("]")) {
+        throw "closeBracket: expected \"]\"";
+    }
+
+    return {
+        value: null,
+        input: input.slice(1),
+    };
+}
+
+// list ::= "[" inner_list "]"
+function list(input) {
+    let value;
+
+    ({input, value} = openBracket(input));
+
+    ({input, value} = innerList(input));
+    // we only care about the value of the list so 
+    // lets save its result to use later
+    let result = value;
+
+    ({input, value} = closeBracket(input));
+
+    return {
+        value: result,
+        input,
     }
 }
 
-// element ::= list | char
+// element ::= list | letter
 function element(input) {
     try {
         return list(input);
@@ -85,4 +104,6 @@ function element(input) {
     }
 }
 
-console.log(JSON.stringify(list("[a, b, [c, d], [], [[e]]]")))
+//console.log(JSON.stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
+//console.log(JSON.Stringify(list("[a, b")))
+console.log(JSON.Stringify(list("[A, b]")))
