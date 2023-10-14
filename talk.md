@@ -171,6 +171,7 @@ Javascript doesn't have tuples, it basically just has maps (in fact, arrays in j
 Looking at our grammar, the simplest symbol is probably a character, so lets look at that. Writing a parser function for this is simple enough:
 
 ```js
+// letter ::= "a" | "b" | ... | "z"
 function letter(input) {
     if (input.length == 0) {
         throw "letter: input not long enough!";
@@ -187,7 +188,7 @@ function letter(input) {
 }
 ```
 
-We just chomp off the next character if it is a to z, and return it. If the string is empty or the next character isn't a letter, we just throw an error.
+We just chop off the next character if it is a to z, and return it. If the string is empty or the next character isn't a letter, we just throw an error.
 For simple parsers like this, a manual approach is perfectly fine. We can do the same thing for open and close brackets too:
 
 ```js
@@ -359,7 +360,7 @@ $ node recursive_descent.js
 And... It just works. Of course this string has extra input at the end, and so in the finished parser we'll want to check that there is no unconsumed input, but it works and it turns our string into a javascript list, with the exact structure we wanted. It also rejects anything that doesn't fit our grammar. For instance, unmatched brackets:
 
 ```js
-console.log(JSON.Stringify(list("[a, b")))
+console.log(JSON.Stringify(list("[a, b")));
 ```
 
 ```
@@ -369,14 +370,12 @@ $ node js/recursive_descent.js
         throw "closeBracket: expected \"]\"";
         ^
 closeBracket: expected "]"
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
-
 ```
 
 And yeah, we even get a good error message - we expected a close bracket. What if one of our elements is not a lowercase letter?
 
 ```js
-console.log(JSON.Stringify(list("[A, b]")))
+console.log(JSON.Stringify(list("[A, b]")));
 ```
 
 ```
@@ -391,3 +390,218 @@ closeBracket: expected "]"
 Hm. This isn't a helpful error message, it's still telling us we expected a close bracket. There is actually a good reason for this - when we tried to parse the inner list, it would have failed to parse any elements, then concluded that the list must be empty, so then it tried to parse a close bracket. Since 'A' is not a close bracket, this is the error message we get. That's one of the limits of our somewhat unsophisticated error handling, but on the bright side we still do get an error because it didn't fit our grammar.
 
 ### 2.2 - Don't repeat yourself
+
+So that's the basics of recursive descent. And it is decent - but there are still a few problems. Mainly, particularly for simple grammars like this, it's a lot of writing. Our parser for this simple recursive list totalled to around 105 lines of code. So it's time to introduce another technique, which is parser _combinators_. Hey, we finally got to the topic of the talk!!!
+
+Recall that a parser is just a function, of a certain type. Well, a **combinator** is a function that takes in parsers and turns them into a new parser. I.e; it is a function that takes in functions as input, and returns a new function as output. That can be strange to get our head around at first, but let's look at some examples.
+
+Let's say I have a function called `zeroOrMore`. As the name suggests, it takes in a parser function and returns a new parser function that parses the original function zero or more times, returning a list of results. That is to say, if `letter` is a parser that parses a letter from a to z, then:
+
+```
+zeroOrMore(letter)
+```
+
+is a parser that parses zero or more letters from a to z, and returns them all in a list. Here's an example of how that behaviour might work:
+
+```
+> letter("abc123")
+{ value: "a", input: "bc" }
+
+> zeroOrMore(letter)("abc")
+{ value: ["a", "b", "c"], input: "123"}
+
+> letter("123")
+error
+
+> zeroOrMore(letter)("123")
+{ value: [], input: "123" }
+```
+
+This syntax might seem a bit strange, but just see it as a parser that takes in an extra argument. If we do it this way, we can treat `zeroOrMore(letter)` as its own parser, and then if we want, we can pass that into other combinators, and so on.
+
+1. My first combinator - `zeroOrMore`
+Let's look at the implementation of `zeroOrMore`, to see what's going on here:
+
+```js
+export function zeroOrMore(parser) {
+    return (input) => {
+        let value;
+        let res = [];
+
+        while (true) {
+            try {
+                ({value, input} = parser(input));
+                res.push(value);
+            } catch {
+                break;
+            }
+        }
+
+        return {
+            value: res,
+            input
+        };
+    }
+}
+```
+
+The important part here is this
+
+```js
+return (input) => { ... }
+```
+
+syntax here. `(arg) => { body }` is how you declare an anonymous function in javascript. This is how you create a new function at runtime. You might have seen these before in other languages, for example in python they're called "lambdas", and in many other languages they're called "closures". All this is doing is creating a new function that takes in input and then runs the parser as many times as it can until it fails, accumulating its results in a list.
+
+Okay, now we get the general gist of what a combinator is, let's go through a few useful ones.
+
+### 2.3 - Combinator roundup
+
+2. Sequence
+
+Here's another basic one - sequence. This takes in *list* of parsers, and parses each one in a row, accumulating their results in a list. Unlike zeroOrMore, this combinator will fail if any one of the parsers in the list fails. Here's how it works
+
+```
+> letter("ab")
+{ value: "a", input: "b" }
+
+> integer("12")
+{ value: 12, input: "" }
+
+> seq(letter, integer)("a12")
+{ value: ["a", 12], input: ""}
+
+> seq(letter, integer)("ab12")
+error - not all parsers succeeded
+```
+
+The way you read this parser is that it parses a letter, then an integer. So that's what it will return - a letter, and then an integer. If that's not the format of our string, it will fail.
+
+This is the implementation:
+
+```js
+export function seq(...parsers) {
+    return (input) => {
+        let value;
+        let res = [];
+
+        for (let parser of parsers) {
+            ({value, input} = parser(input));
+            res.push(value);
+        }
+
+        return {
+            value: res,
+            input,
+        };
+    }
+}
+```
+
+Those three dots in the input argument just mean that we can pass in any number of arguments into the function and they'll all be collected into a list. It just means instead of writing `seq([letter, integer])` we write `seq(letter, integer)`, but it does the same thing.
+
+3. Either
+
+Another thing we had in our grammar was this alternative construction
+
+```
+symbol ::= a | b | c | ...
+```
+
+I.e., our symbol is either a or b or c, and so on. `either` is a combinator that does just that - it takes in a list of combinators and tries each of them in sequence, and just returns the result of the first one that succeeds:
+
+```js
+export function either(...parsers) {
+    return (input) => {
+        for (let parser of parsers) {
+            try {
+                return parser(input);
+            } catch {}
+        }
+
+        throw "either: none of the parsers succeeded";
+    }
+}
+```
+
+And here's an example of its behaviour:
+
+```
+> either(letter, integer)("a1")
+{ value: "a", input: "1" }
+
+> either(letter, integer)("1a")
+{ value: 1, input: "a" }
+
+> either(letter, integer)("?????")
+error: either: none of the parsers succeeded
+```
+
+4. Even more powerful combinators - separated list
+
+Combinators can also be as complicated as you want them to be! Here's one that matches a separated list. It takes in two parsers, one of them for the element and one for the separator, and it matches this grammar:
+
+```
+separatedList ::= [ element {separator element} ]
+```
+
+This is the same as our grammar for lists that we saw earlier, but in this case it's generalised to be any separator and any element. Here is the implementation:
+
+```js
+export function separatedList(parser, separator) {
+    return (input) => {
+        let value;
+
+        // This is basically just the grammar for a nonempty list!
+        let list = seq(
+            parser,
+            zeroOrMore(seq(separator, parser)),
+        );
+
+        try {
+            ({value, input} = list(input));
+        } catch {
+            // Parse this as an empty list
+            return {
+                value: [],
+                input,
+            }
+        }
+
+        let [firstElement, subsequentElements] = value;
+        // Remember that seq(separator, parser) returns an array:
+        // [separatorValue, parserValue]
+        // so we have to extract the second element from each result.
+        subsequentElements = subsequentElements.map((list => list[1]))
+
+        return {
+            value: [firstElement, ...subsequentElements],
+            input,
+        };
+    }
+}
+```
+
+This code is maybe a bit more complicated - it's okay, you don't need to know exactly what it's doing, but notice that we start by constructing a new parser which is an element followed by zero or more of the separator followed by another element. This is basically just our grammar. Then if that fails we return an empty list, otherwise we return the list of elements we parsed.
+
+Let's have a look at it's behaviour to see what it's doing:
+
+```
+> comma(" ,hello")
+{ value: ", ", input: "hello" }
+
+> separatedList(integer, comma)("1")
+{ value: [1], input: "" }
+
+> separatedList(integer, comma)("1, 26, 1337")
+{ value: [1, 26, 1337], input: ""}
+
+> separatedList(integer, comma)("should parse nothing")
+{ value: [], input: "should parse nothing" }
+```
+
+Woah. That's powerful. We can now create parsers that parse separated lists in exactly one function call. It's also quite readable too; it is a "list of integers, separated by commas". That's very declarative and makes sense to our human brains, but the surprising part is that it *also makes sense to the computer*.
+
+### 2.4 - All together now
+
+Okay, I think we have almost enough to write our recursive list parser again. It's time for LIVE CODING.

@@ -2,13 +2,51 @@
 <html>
 
 <head>
-    <title>727 wysi</title>
+    <title>parsers!!!</title>
+    <style>
+        body {
+            background: #d5c4ff;
+        }
+
+        body, input, button {
+            font-family: "Fira Sans", sans-serif;
+            font-size: 20px;
+        }
+
+        h1 {
+            font-family: "Comic Sans MS";
+            font-size: 50px;
+            background-image: linear-gradient(60deg, #FF00D4, #0000FF);
+            background-clip: text;
+            color: transparent;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
 </head>
 
 <body>
-    <h1 style='font-family: "Comic Sans MS"; font-size: 50px; background-image: linear-gradient(60deg, #FF00D4, /*#8000FF*/#0000FF); background-clip: text; color: transparent;'>
-        web design is my <i>~* Passion *~</i>
-    </h1>
+    <div id="container">
+        <h1>
+            web design is my <i>~* Passion *~</i>
+        </h1>
+
+        <hr style="width: 100%">
+
+        <div style="display: block; margin-top: 50px;">
+            <input id="input">
+            <button id="parse">Run the parser!</button>
+
+            <p>
+                <b>output: </b>
+                <span id="output">no output yet... run the parser!!!</p>
+            </p>
+        </div>
+    </div>
 
     <script type="module" src="index.js"></script>
 </body>

@@ -104,6 +104,6 @@ function element(input) {
     }
 }
 
-//console.log(JSON.stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
+console.log(JSON.stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
 //console.log(JSON.Stringify(list("[a, b")))
-console.log(JSON.Stringify(list("[A, b]")))
+//console.log(JSON.Stringify(list("[A, b]")))

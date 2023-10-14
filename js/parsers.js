@@ -13,7 +13,7 @@ export function string(str) {
             };
         }
 
-        throw "string: input does not start with given string";
+        throw `string: expected '${str}'`;
     };
 }
 
@@ -123,31 +123,32 @@ export function delimited(d1, parser, d2) {
 export function separatedList(parser, separator) {
     return (input) => {
         let value;
-        let res;
+
+        // This is basically just the grammar for a nonempty list!
+        let list = seq(
+            parser,
+            zeroOrMore(seq(separator, parser)),
+        );
 
         try {
-            ({value, input} = parser(input));
-            res = [value];
+            ({value, input} = list(input));
         } catch {
+            // Parse this as an empty list
             return {
                 value: [],
                 input,
             }
         }
 
-        while (true) {
-            try {
-                ({value, input} = separator(input));
-            } catch {
-                break;
-            }
+        let [firstElement, subsequentElements] = value;
 
-            ({value, input} = parser(input));
-            res.push(value);
-        }
+        // Remember that seq(separator, parser) returns an array:
+        // [separatorValue, parserValue]
+        // so we have to extract the second element from each result.
+        subsequentElements = subsequentElements.map((list => list[1]))
 
         return {
-            value: res,
+            value: [firstElement, ...subsequentElements],
             input,
         };
     }
