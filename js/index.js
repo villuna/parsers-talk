@@ -1,10 +1,10 @@
 import { satisfy, delimited, string, either, separatedList } from "./parsers.js";
 
+
+// Parser goes here ...
 var letter = satisfy((c) => c >= 'a' && c <= 'z');
 var element = either(letter, list);
 
-
-// Parser goes here ...
 function list(input) {
     return delimited(
         string("["), 
@@ -13,10 +13,10 @@ function list(input) {
     )(input);
 }
 
-let parser = list;
-
 
 // Html stuff so that the website works
+let parser = list;
+
 let parseButton = document.getElementById("parse");
 let input = document.getElementById("input");
 let output = document.getElementById("output");
