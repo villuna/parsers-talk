@@ -101,14 +101,21 @@ fn punctuation(input: &str) -> IResult<&str, Token> {
     ))(input)
 }
 
-// An identifier starts with a
-fn identifier(input: &str) -> IResult<&str, Token> {
+fn identifier(input: &str) -> IResult<&str, &str> {
     recognize(tuple((
         satisfy(|c| c.is_ascii_alphabetic()),
         many0(satisfy(|c| c.is_ascii_alphanumeric())),
-    )))
-    .map(|s: &str| Token::Identifier(s.to_string()))
-    .parse(input)
+    )))(input)
+}
+
+fn keyword_or_identifier(input: &str) -> IResult<&str, Token> {
+    let (input, result) = identifier(input)?;
+
+    if let Ok((_, keyword)) = terminated(keyword, eof)(result) {
+        Ok((input, keyword))
+    } else {
+        Ok((input, Token::Identifier(result.to_string())))
+    }
 }
 
 fn int(input: &str) -> IResult<&str, Token> {
@@ -128,7 +135,7 @@ fn bool(input: &str) -> IResult<&str, Token> {
 }
 
 fn token(input: &str) -> IResult<&str, Token> {
-    alt((int, bool, keyword, identifier, punctuation))(input)
+    alt((int, bool, keyword_or_identifier, punctuation))(input)
 }
 
 pub fn token_stream(input: &str) -> Result<Vec<Token>, Error<&str>> {
