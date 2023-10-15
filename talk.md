@@ -1,13 +1,15 @@
+If you're reading this, don't pay attention to the section numbers. They don't make sense but that's okay.
+
 # Script structure
 
 - Introduction and high level overview
 - Description of parsers
-    - Manual parsers and their downsides
-    - Diversion to talk about regex
-    - Regex to grammars, EBNF
-    - Now we have grammars, there are many ways to turning grammars into parsers
-    - Parser combinators
-    - Turning grammars into parsers
+  - Manual parsers and their downsides
+  - Diversion to talk about regex
+  - Regex to grammars, EBNF
+  - Now we have grammars, there are many ways to turning grammars into parsers
+  - Parser combinators
+  - Turning grammars into parsers
 
 # Script - Parser Combinators in n different languages
 
@@ -19,24 +21,18 @@ Today's topic is of course, parser combinators. Parser combinators are a way of 
 
 But before I really introduce you to combinators, we have to take a short hike through some more abstract topics. Since this talk is aimed at people who know how to program but may not know any formal methods of parsing, we'll have to build combinators from the ground up.
 
-So in the interest of keeping this talk widely accessible:
-
 ## 1.1 Introduction to parsers
-
-[Image of computer]
-This is a computer.
-
-[Image of human]
-This is a human. Like most humans, this one likes to talk to computers. But computers aren't very smart, at least they can't process language like this specimen's brain can. This is why we invented parsers, to allow computers to understand us when we talk to them.
 
 You've almost definitely written *some* kind of parser before. A parser is usually just some program that takes in a string, usually in a format that humans can understand, analyses its structure and turns the important data into a format that the *computer* can understand. It also needs to be able to fail if the string doesn't actually match our format. This doesn't even have to be a string really, it could be any data stream, but for now let's just focus on strings.
 
 In order to write a parser programatically, we need to have a good understanding of the structure of our text format. So before we talk about writing parsers, we have to talk about another concept:
 
 ### 1.1.1 Grammars
-Grammars. Now grammars are a really important concept in parsing, and definitely a fun rabbit hole to go down.
+
+Grammars. Now grammars are a really important concept in parsing, and definitely a bit of a rabbit hole.
 
 ### 1.1.(1.5) Regex
+
 ..But actually before we talk about grammars actually let's take a quick digression to talk about regex. Regex is nice. How many of you are familiar with regex?
 
 - if yes: good, this will make things a bit easier
@@ -44,13 +40,13 @@ Grammars. Now grammars are a really important concept in parsing, and definitely
 
 Regexes allow you to define the format of a string declaratively, and test if a string follows that format. If a string follows the structure defined by the regex, we say it "matches" that regex. So here's an example of a regex that matches an acceptable rendition of "chugga-chugga choo choo":
 
-```
+```text
 (chugga chugga chugga chugga)+choo choo
 ```
 
 you read this like '1 or more "chugga chugga chugga chugga"s followed by one "choo choo"'. The plus means "one or more of whatever thing is immediately before the plus" Okay, that's a bit silly so let's take a look at a rule that matches a positive integer:
 
-```
+```text
 0|([1-9][0-9]*)
 ```
 
@@ -70,7 +66,7 @@ Okay, back to grammars. A grammar is a lot like a regex, it defines the structur
 
 Here is a grammar that defines a list, whose elements are letters or other lists. For example, something like [a, [b, c], [d, [e]], [], f].
 
-```
+```text
 list ::= '[' inner_list ']'
 
 inner_list ::= element { ', ' element } | empty
@@ -96,7 +92,7 @@ Recursive descent is a method of parsing that revolves around functions. For eac
 
 The functions have this kind of type signature:
 
-```
+```text
 parser(String) -> (ParsedType, String) | Error
 ```
 
@@ -104,7 +100,7 @@ Let's break this down quickly. First, the function takes in a string (no surpris
 
 Now, you might wonder why we aren't parsing the whole string, and why we return what wasn't parsed. This allows us to chain multiple parsers together. Remember how in the definition of our grammar, we listed symbols left to right? If you want to be able to parse a grammar like this:
 
-```
+```text
 symbol ::= a b
 ```
 
@@ -144,7 +140,7 @@ But Javascript is perfect for this because it's very simple and it'll allow us t
 
 Remember a few minutes ago when I told you about this grammar that parses nested lists? Let's write a recursive descent parser to do that!
 
-### 2.1 - A Recursive, Decent Parser.
+### 2.1 - A Recursive, Decent Parser
 
 The first question to ask is, what does our parser type look like in this language? Javascript is a very weakly typed language, so we have a lot of freedom in how to define things, but what I came up with is something like this:
 
@@ -252,9 +248,9 @@ value = parserResult.value;
 
 First we parse this open bracket, and ignore its value. Since we're using exceptions for our error handling, if this parser fails, the whole function fails, which is what we want (every parse has to succeed, in order). We then parse the inner list - we haven't defined this function yet, but you can probably assume what it does, which is parse an inner list and return its value. We then parse the closing bracket, and then return the value we parsed.
 
-So that's how we parse multiple elements in a row. How about this construction, where the grammar could be one of multiple alternatives? 
+So that's how we parse multiple elements in a row. How about this construction, where the grammar could be one of multiple alternatives?
 
-```
+```text
 element ::= list | letter
 ```
 
@@ -279,9 +275,8 @@ We try each parser in order, and if none of them succeed we just throw an error.
 
 Let's go back to our innerList parser that we referenced earlier but never defined; how we parse the same thing 0 or more times?
 
-```
-innerList ::= [ nonEmptyInnerList ]
-nonEmptyInnerList ::= element { ", " element}
+```text
+innerList ::= [ element { ", " element} ]
 ```
 
 Well, that's just a while loop!
@@ -351,7 +346,7 @@ I think that's all our symbols in our grammar, so let's test it out:
 console.log(JSON.Stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
 ```
 
-```
+```text
 $ node recursive_descent.js
 
 {"value":["a","b",["c","d"],[],[["e"]]],"input":"bababooey"}
@@ -363,7 +358,7 @@ And... It just works. Of course this string has extra input at the end, and so i
 console.log(JSON.Stringify(list("[a, b")));
 ```
 
-```
+```text
 $ node js/recursive_descent.js
 
 /home/luna/Documents/parsers/js/recursive_descent.js:66
@@ -378,7 +373,7 @@ And yeah, we even get a good error message - we expected a close bracket. What i
 console.log(JSON.Stringify(list("[A, b]")));
 ```
 
-```
+```text
 $ node js/recursive_descent.js
 
 /home/luna/Documents/parsers/js/recursive_descent.js:66
@@ -391,19 +386,19 @@ Hm. This isn't a helpful error message, it's still telling us we expected a clos
 
 ### 2.2 - Don't repeat yourself
 
-So that's the basics of recursive descent. And it is decent - but there are still a few problems. Mainly, particularly for simple grammars like this, it's a lot of writing. Our parser for this simple recursive list totalled to around 105 lines of code. So it's time to introduce another technique, which is parser _combinators_. Hey, we finally got to the topic of the talk!!!
+So that's the basics of recursive descent. And it is decent - but there are still a few problems. Mainly, particularly for simple grammars like this, it's a lot of writing. Our parser for this simple recursive list totalled to around 105 lines of code. So it's time to introduce another technique, which is parser *combinators*. Hey, we finally got to the topic of the talk!!!
 
 Recall that a parser is just a function, of a certain type. Well, a **combinator** is a function that takes in parsers and turns them into a new parser. I.e; it is a function that takes in functions as input, and returns a new function as output. That can be strange to get our head around at first, but let's look at some examples.
 
 Let's say I have a function called `zeroOrMore`. As the name suggests, it takes in a parser function and returns a new parser function that parses the original function zero or more times, returning a list of results. That is to say, if `letter` is a parser that parses a letter from a to z, then:
 
-```
+```text
 zeroOrMore(letter)
 ```
 
 is a parser that parses zero or more letters from a to z, and returns them all in a list. Here's an example of how that behaviour might work:
 
-```
+```text
 > letter("abc123")
 { value: "a", input: "bc" }
 
@@ -461,7 +456,7 @@ Okay, now we get the general gist of what a combinator is, let's go through a fe
 
 Here's another basic one - sequence. This takes in *list* of parsers, and parses each one in a row, accumulating their results in a list. Unlike zeroOrMore, this combinator will fail if any one of the parsers in the list fails. Here's how it works
 
-```
+```text
 > letter("ab")
 { value: "a", input: "b" }
 
@@ -504,7 +499,7 @@ Those three dots in the input argument just mean that we can pass in any number 
 
 Another thing we had in our grammar was this alternative construction
 
-```
+```text
 symbol ::= a | b | c | ...
 ```
 
@@ -526,7 +521,7 @@ export function either(...parsers) {
 
 And here's an example of its behaviour:
 
-```
+```text
 > either(letter, integer)("a1")
 { value: "a", input: "1" }
 
@@ -541,7 +536,7 @@ error: either: none of the parsers succeeded
 
 Combinators can also be as complicated as you want them to be! Here's one that matches a separated list. It takes in two parsers, one of them for the element and one for the separator, and it matches this grammar:
 
-```
+```text
 separatedList ::= [ element {separator element} ]
 ```
 
@@ -586,7 +581,7 @@ This code is maybe a bit more complicated - it's okay, you don't need to know ex
 
 Let's have a look at it's behaviour to see what it's doing:
 
-```
+```text
 > comma(" ,hello")
 { value: ", ", input: "hello" }
 
@@ -600,7 +595,7 @@ Let's have a look at it's behaviour to see what it's doing:
 { value: [], input: "should parse nothing" }
 ```
 
-Woah. That's powerful. We can now create parsers that parse separated lists in exactly one function call. It's also quite readable too; it is a "list of integers, separated by commas". That's very declarative and makes sense to our human brains, but the surprising part is that it *also makes sense to the computer*.
+We can now create parsers that parse separated lists in exactly one function call. It's also quite readable too; it is a "list of integers, separated by commas". That's very declarative and makes sense to our human brains, but the surprising part is that it *also makes sense to the computer*.
 
 ### 2.4 - All together now
 
