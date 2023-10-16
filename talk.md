@@ -1,37 +1,26 @@
-If you're reading this, don't pay attention to the section numbers. They don't make sense but that's okay.
-
-# Script structure
-
-- Introduction and high level overview
-- Description of parsers
-  - Manual parsers and their downsides
-  - Diversion to talk about regex
-  - Regex to grammars, EBNF
-  - Now we have grammars, there are many ways to turning grammars into parsers
-  - Parser combinators
-  - Turning grammars into parsers
-
 # Script - Parser Combinators in n different languages
+
+If you're reading this, don't pay attention to the section numbers. They don't make sense but that's okay.
 
 Intro - in google doc
 
-# 1. High level overview
+## 1. High level overview
 
 Today's topic is of course, parser combinators. Parser combinators are a way of creating parsers in a programmatic way, that allow us to write such parsers in a declarative fashion. We essentially just tell the computer the structure of the language we want to understand, as well as some extra code to turn strings into some data the computer can understand, and it kind of "writes the parser for us". This isn't code generation or parser generators or anything fancy either, we're going to be able to achieve this with some plain old functions.
 
 But before I really introduce you to combinators, we have to take a short hike through some more abstract topics. Since this talk is aimed at people who know how to program but may not know any formal methods of parsing, we'll have to build combinators from the ground up.
 
-## 1.1 Introduction to parsers
+### 1.1 Introduction to parsers
 
 You've almost definitely written *some* kind of parser before. A parser is usually just some program that takes in a string, usually in a format that humans can understand, analyses its structure and turns the important data into a format that the *computer* can understand. It also needs to be able to fail if the string doesn't actually match our format. This doesn't even have to be a string really, it could be any data stream, but for now let's just focus on strings.
 
 In order to write a parser programatically, we need to have a good understanding of the structure of our text format. So before we talk about writing parsers, we have to talk about another concept:
 
-### 1.1.1 Grammars
+#### 1.1.1 Grammars
 
 Grammars. Now grammars are a really important concept in parsing, and definitely a bit of a rabbit hole.
 
-### 1.1.(1.5) Regex
+#### 1.1.(1.5) Regex
 
 ..But actually before we talk about grammars actually let's take a quick digression to talk about regex. Regex is nice. How many of you are familiar with regex?
 
@@ -60,7 +49,7 @@ There are some problems with regex though. Regex is not powerful enough to parse
 
 So this is where grammars come back in.
 
-### 1.1.2 Grammars for real this time
+#### 1.1.2 Grammars for real this time
 
 Okay, back to grammars. A grammar is a lot like a regex, it defines the structure of text from left to right, but now we can give names to different sub-structures. I think the best way to understand this is by looking at a couple examples so let's do that.
 
@@ -84,7 +73,7 @@ This defines the structure of our format, much like regex, except in this case w
 
 TODO: Research the technical definition of grammars so you can give something more rigorous
 
-## 1.2 Grammars into parsers
+### 1.2 Grammars into parsers
 
 So we have a way of thinking critically about our text formats. It's definitely interesting and gives us some insight about our format, but how do we turn this into a parser? Actually, there are many ways, including parser generators that will take a grammar and automatically generate a parser program for you, but today we're going to be looking at a more manual method of parsing, which is called recursive descent.
 
