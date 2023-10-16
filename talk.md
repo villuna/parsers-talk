@@ -16,7 +16,7 @@ By the way, the kinds of grammars we're going to talk about today are called Con
 
 Grammars are often written out in a notation called Extended Backus-Naur Form (EBNF). In this syntax, to define the structure of some text we first give that structure a name, then write this funky equals sign, then we define what that structure looks like.
 
-```
+```text
 symbolName ::= /* the structure of the text */
 ```
 
@@ -219,6 +219,14 @@ function closeBracket(input) {
         input: input.slice(1),
     };
 }
+```
+
+```js
+assert(integer("727wysi") == { value: 727, input: "wysi" });
+
+assert(openBracket("[hi") == { value: null, input: "hi" });
+
+assert(closeBracket("]hey") == { value: null, input: "hey" });
 ```
 
 Next, to combine parsers we can just run the functions one after another, feeding in the unconsumed input to the next parser each time. It looks like this:
