@@ -400,10 +400,10 @@ is a parser that parses zero or more letters from a to z, and returns them all i
 
 ```text
 > letter("abc123")
-{ value: "a", input: "bc" }
+{ value: "a", input: "bc123" }
 
 > zeroOrMore(letter)("abc")
-{ value: ["a", "b", "c"], input: "123"}
+{ value: ["a", "b", "c"], input: ""}
 
 > letter("123")
 error
@@ -600,3 +600,195 @@ We can now create parsers that parse separated lists in exactly one function cal
 ### 2.4 - All together now
 
 Okay, I think we have almost enough to write our recursive list parser again. It's time for LIVE CODING.
+
+## 3 - RUST MENTIONED!!!
+
+Okay, this talk isn't called "parser combinators in javascript" so let's move onto our next language, which is rust. Now rust is my favourite language, and it has a few requirements that javascript doesn't have. Rust is statically typed, so the types of all of our parsers have to be specified at compile time. We also handle errors a bit differently, as we'll come to see.
+
+We already know how combinators work so let's instead analyse a pre-existing combinator library. This is how you would actually do combinatorial parsing by the way, just pull in a library instead of reinventing the wheel.
+
+The library we're looking at is called nom (I think that's a pretty cute name - especially bc of how these parsers work :3). As you might expect, nom mostly consists of a bunch of convenience functions. There's a markdown document on github that tries to list them all, let's have a look at that: https://github.com/rust-bakery/nom/blob/main/doc/choosing_a_combinator.md
+
+[Talk a little bit about the combinators]
+
+These functions have a similar type to what we're already familiar with, but slightly different as rust doesn't have error handling. The definition of a parser type in nom is a little complicated so here's a simplified version:
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+type Parser<Input, Output, Error> = fn(Input) -> Result<(Input, Output), Error>;
+```
+
+These types here are generic parameters - we're saying that they can be literally anything. Also I've written out their full names like this, but from now on we'll just be using a single capital letter for generic types:
+
+```rust
+type Parser<I, O, E> = fn(I) -> Result<(I, O), E>
+```
+
+So how do we read this? This Result type is a standard type in Rust, it's how you do error handling. It is a type that can be one of two variants - either it is Ok, and contains a result value, or it is Err and it contains an error value.
+
+So our parser is a function from some generic type I (it doesn't have to be a string), to either an Ok variant containing our unconsumed input and our output value, or an Err variant containing an error value.
+
+Generic types are a bit hard to reason about so here's an example for a function that parses a 32-bit integer from a string:
+
+```rust
+fn integer(input: &str) -> Result<(&str, i32), IntegerParseError>;
+```
+
+And notice now we can define our own types for error handling. This gives us a very expressive error handling system. It also allows us to use any input type we want. In fact, nom was originally designed just to parse binary formats, streams of bytes; but it was extended to handle pretty much anything including utf-8 strings.
+
+Okay, it's time to dive into documentation! https://docs.rs/nom/latest/nom/index.html
+
+If I have time, I would like to write a simple .ini parser with you, but if I have no time I'll just explore a prewritten one or maybe my toy programming language interpreter.
+
+## 4. Loose ends and honourary mentions
+
+Alright. It's been a bit of a journey, and we're basically done for the informative portion of the talk. But given that parsing is such a big topic, There are many more things I would have loved to talk about but can't because of scope and time so here are a few pointers if you would like to learn more.
+
+### 4.1 - Functional Programming
+
+What we have done today is a style of parsing that was pioneered in the scope of functional programming languages. None of the languages we're using today are functional programming languages - in fact, javascript is a non-functional programming language - but this technique definitely is a functional style.
+
+- Little spiel about what functional programming is
+- There are tradeoffs for writing this style in non-fp languages, for instance you get to write imperative code but you don't get the nice things like monads or out-of-order evaluation
+- Would you like to know more? Take COMP3400
+
+### 4.2 - Programming Languages
+
+Writing parsers for structured text formats like this is pretty cool, but there are a few other techniques which come in handy when you're parsing complicated formats like programming languages.
+
+A programming language parser usually contains two parts. The first part is called a "lexer", which turns text into a stream of what we call "tokens" - those are just the basic symbols that make up the language. This lexer strips away unnecessary things like whitespace or comments, and might do some basic parsing of integers and the like.
+
+So for example, this simple rust program:
+
+```rust
+if i == 1 {
+    print("hello");
+}
+```
+
+Gets put through the lexer and turned into a stream of tokens that look something like this:
+
+```rust
+[If, Identifier("i"), Eq, Integer(1), LeftCurly, Identifier("print"), LeftBracket, String("hello"), RightBracket, Semicolon, RightCurly]
+```
+
+This is a linear stream of tokens with no structure whatsoever, but makes the grammar for the language comparatively easier to write because we don't need to worry about things like whitespace and the like.
+
+The second parser would take this format and parse it into what's called an Abstract Syntax Tree. This is outside of our scope, this is more to do with compilers than parsing, but if you would like to know more there are myriad resources online, and of course you can take the brilliant course COMP4403 (Compilers and Interpreters), which goes into way more detail about all this stuff.
+
+So we would basically define two functions:
+
+```rust
+fn lexer(input: &str) -> IResult<&str, TokenStream, LexError> {
+    // ...
+}
+
+fn parser(input: TokenStream) -> IResult<TokenStream, AbstractSyntaxTree, ParseError> {
+    // ...
+}
+```
+
+And then we'd do something with the output.
+
+### 4.3 - There are *more* methods of parsing???
+
+Finally, we've been talking about recursive descent, but that's not the only method of parsing that exists. There are soo many more, so let's go through a quick "who would win". So without further ado - go team combinators!!
+
+#### 4.3.1 - Combinators vs Manual parsing
+
+The obvious alternative to a formal method of parsing is no formal method of parsing. This is a perfectly fine way of doing things for many applications, and it's probably what you're most used to. When I say "manual parsing" what I mean is using basic string manipulation functions.
+
+Pros of manual parsing:
+- Extremely simple. Not much code is needed.
+- Usually the most performant as the compiler is more has an easier time optimising it than combinator recursion hell
+- No libraries required
+
+Cons:
+- As soon as the format gets slightly complicated (or worse - recursive), manual parsers become impossible to understand and ridden with bugs.
+- Often the format becomes dictated by the parser rather than the other way round (the format is like this because it's easy to parse)
+- Takes a LONG TIME to write. Small things like handling whitespace become hell.
+
+Similarities?:
+- Both are "just code", we don't need some extra program to generate a parser for us
+
+So manual parsing is fine when you can easily write the parser in your head, like a comma separated list of integers, for example. But what if you wanted to extend that and add *strings*. Now the strings can contain commas, so you can't just split on commas like you did when the list just contained integers. So now you have to rewrite the ENTIRE THING from scratch. So manual parsing is basically untennable for complicated formats.
+
+#### 4.3.2 - Combinators vs Generators
+
+Another, easier method of creating a parser from a grammar is to use a parser generator, like yacc or GNU bison. These are programs that take in a specification of a grammar and just create a parser for you. There are many generators out there, there's one for rust called Pest, in COMP4403 you use one called JavaCUP.
+
+Pros of Generators:
+- Don't have to write any code whatsoever
+- Generally quite reliable (if you use them right - google cloudbleed)
+- Errors are handled well without having to do a lot of thinking
+- Probably your best choice for complicated formats unless you like writing a lot of code
+
+Cons:
+- These generators often just parse into a tree of strings, so you'll have to do some extra work to convert to whatever datatype you need
+- Generated code is annoying to read and maintain
+- Big generators, big dependencies; overkill for an uncomplicated format
+- The grammar format is another language you have to learn
+
+#### 4.3.3 - Combinators vs Regex
+
+This is a lot like the manual parsing part, but I figured I'd mention regex.
+
+I love regex, but I reckon you shouldn't use regex for parsing. In my testing, using regex to extract things out of a string is actually slower than using combinators, not including the time it takes to compile the regex. It's also harder to read and maintain.
+
+HOWEVER. Regex is very fast and very good at just *recognising* if a string satisfies a certain format. It's also great for things like finding parts of a string that match a certain format without having to parse the entire string. So regex is really good for some things, and worse at others.
+
+#### 4.3.4 - Combinators vs, y'know, just like JSON or whatever
+
+Go for it. There are many reasons you would want to use a pre-existing filetype. Parsers are fun but usually unnecessary.
+
+---
+
+Okay. I hope this has given you a lot to think about, and hopefully now you're ready to go home and find a combinator library in your favourite language and write a parser for something fun. Here are some ideas:
+
+- Invent your own configuration language and parse it (creative!)
+- A parser that analyses logical expressions and prints out their truth table (mathematical!!)
+- Your own dialect of the lisp programming language ((((((((Impressive)))))))!!!)
+- A parser that recognises the rules and starting state of a turing machine and (turing complete!!!!)
+
+But before we wrap up, I'd like to just show one more language.
+
+## 5 - The C Programming Language, by Brian Kernighan, Dennis Ritchie and Luna Borella 
+
+This is how how I took the square peg of combinators and forced them into the round hole of the C programming language.
+
+Because this is the last part of the talk and I don't have time I'm going to assume a basic knowledge of C. So first of all, what's our parser type? We can't return tuples, so instead I landed on this, which is a reasonable way to do multiple return in C:
+
+```c
+char* parser(char* input, void* output);
+```
+
+We basically just write our return type to the output pointer. I've made it void star, this is how we do polymorphism in C, we basically just ignore the type and pass around memory addresses.
+
+But hold on. Anonymous functions. Big problem right? We can't create an anonymous function at runtime, we can only define functions at compile time (footnote: you can in GCC but it's not standard). So we can't make combinators, because there's no way to make a define a function that takes in parsers and returns a new parser.
+
+Or is there?
+
+Here is my awful solution:
+
+```c
+typedef struct {
+    void* data;
+    char* (*parse)(char* input, void* output, void* data);
+} parser_t;
+```
+
+So, what this means is that a parser contains
+1. some runtime-dependent data that is passed into the parser when it is called,
+2. a function that takes in our input and our runtime data and parses a string like usual
+
+I don't think this is going to make sense without an example, so it's time to dive into the code.
+
+## 6 - Conclusion
+
+Um, in conclusion. Parser combinators are great, and you can implement them in your favourite language with a bit of ingenuity and maybe a little bit of madness. Go have fun with them.
+
+Thank you for coming to my talk?
