@@ -1,2 +1,2 @@
 build:
-	cc parsers.c -o parsers
+	cc parsers.c util.c -o parsers
