@@ -1,8 +1,16 @@
-import { integer, delimited, string, either, separatedList } from "./parsers.js";
+import { delimited, integer, string, either, separatedList } from "./parsers.js";
 
 // Parser goes here ...
 
+let element = either(list, integer);
 
+function list(input) {
+    return delimited(
+        string("["),
+        separatedList(element, string(", ")),
+        string("]"),
+    )(input);
+}
 
 // Html stuff so that the website works
 let parser = list;

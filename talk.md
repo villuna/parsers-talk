@@ -318,7 +318,6 @@ function commaThenElement(input) {
 function nonEmptyInnerList(input) {
     let value;
     ({value, input} = element(input)); 
-
     let res = [value];
 
     while (true) {
@@ -326,7 +325,6 @@ function nonEmptyInnerList(input) {
             ({input, value}) = commaThenElement(input);
             res.push(value);
         } catch {
-            // If we encounter an error, we don't fail, we just stop the loop
             break;
         }
     }
@@ -362,7 +360,7 @@ I think that's all our symbols in our grammar, so let's test it out:
 ```js
 // ...
 let input = "[1, 2, [3, 4], [[727]]]"
-console.log(JSON.stringify(list()))
+console.log(JSON.stringify(list(input)));
 ```
 
 ```text
@@ -514,6 +512,10 @@ export function seq(...parsers) {
 
 Those three dots in the input argument just mean that we can pass in any number of arguments into the function and they'll all be collected into a list. It just means instead of writing `seq([letter, integer])` we write `seq(letter, integer)`, but it does the same thing.
 
+```js
+seq([letter, integer])
+```
+
 3. Either
 
 Another thing we had in our grammar was this alternative construction
@@ -633,12 +635,31 @@ The library we're looking at is called nom (I think that's a pretty cute name - 
 These functions have a similar type to what we're already familiar with, but slightly different as rust doesn't have error handling. The definition of a parser type in nom is a little complicated so here's a simplified version:
 
 ```rust
+// Defined in the standard library -
+// this is how rust handles errors
 enum Result<T, E> {
     Ok(T),
     Err(E),
 }
 
-type Parser<Input, Output, Error> = fn(Input) -> Result<(Input, Output), Error>;
+enum Err<E> {
+  Incomplete(Needed),
+  Error(E),
+  Failure(E),
+}
+
+fn parser(input: I) -> Result<(I, O), Err<E>> {
+
+}
+```
+
+```rust
+fn read_to_string(filename: String) -> Result<String, std::io::Error>;
+
+match read_to_string("talk.md") {
+    Ok(string) => println!("the script for the talk!: {string}"),
+    Err(e) => eprintln!("error: {e}"),
+}
 ```
 
 These types here are generic parameters - we're saying that they can be literally anything. Also I've written out their full names like this, but from now on we'll just be using a single capital letter for generic types:
@@ -654,7 +675,7 @@ So our parser is a function from some generic type I (it doesn't have to be a st
 Generic types are a bit hard to reason about so here's an example for a function that parses a 32-bit integer from a string:
 
 ```rust
-fn integer(input: &str) -> Result<(&str, i32), IntegerParseError>;
+fn integer(input: &str) -> IResult<&str, i32, IntegerParseError>;
 ```
 
 And notice now we can define our own types for error handling. This gives us a very expressive error handling system. It also allows us to use any input type we want. In fact, nom was originally designed just to parse binary formats, streams of bytes; but it was extended to handle pretty much anything including utf-8 strings.
