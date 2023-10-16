@@ -4,96 +4,121 @@ If you're reading this, don't pay attention to the section numbers. They don't m
 
 Intro - in google doc
 
-## 1. High level overview
+## 1 - What is a parser anyway?
 
-Today's topic is of course, parser combinators. Parser combinators are a way of creating parsers in a programmatic way, that allow us to write such parsers in a declarative fashion. We essentially just tell the computer the structure of the language we want to understand, as well as some extra code to turn strings into some data the computer can understand, and it kind of "writes the parser for us". This isn't code generation or parser generators or anything fancy either, we're going to be able to achieve this with some plain old functions.
+We're going to be doing a bit of a different way of writing parsers today. Normally when I'm writing a manual parser I tend to just get stuck in to the code immediately, but we're taking a more thoughtful approach today. Before we start parsing, we're going to try to analyse the structure of our text into something called a *grammar*, and then turn that grammar into a parser.
 
-But before I really introduce you to combinators, we have to take a short hike through some more abstract topics. Since this talk is aimed at people who know how to program but may not know any formal methods of parsing, we'll have to build combinators from the ground up.
+### 1.1 - First there is the format
 
-### 1.1 Introduction to parsers
+Grammars are a way of defining the structure of a text format in a declarative way. In particular, it's a way that is very easy for humans to understand. I think it's very close to how we humans tend to think about formats in general. (give the csv example)
 
-You've almost definitely written *some* kind of parser before. A parser is usually just some program that takes in a string, usually in a format that humans can understand, analyses its structure and turns the important data into a format that the *computer* can understand. It also needs to be able to fail if the string doesn't actually match our format. This doesn't even have to be a string really, it could be any data stream, but for now let's just focus on strings.
+By the way, the kinds of grammars we're going to talk about today are called Context-Free grammars, which is a kind of grammar that is really easy to turn into a parser in an algorithmic way. I really don't have enough time to do this topic justice, but if you want to learn more you should definitely take COMP4403, which is where I learned most of this stuff.
 
-In order to write a parser programatically, we need to have a good understanding of the structure of our text format. So before we talk about writing parsers, we have to talk about another concept:
+Grammars are often written out in a notation called Extended Backus-Naur Form (EBNF). In this syntax, to define the structure of some text we first give that structure a name, then write this funky equals sign, then we define what that structure looks like.
 
-#### 1.1.1 Grammars
-
-Grammars. Now grammars are a really important concept in parsing, and definitely a bit of a rabbit hole.
-
-#### 1.1.(1.5) Regex
-
-..But actually before we talk about grammars actually let's take a quick digression to talk about regex. Regex is nice. How many of you are familiar with regex?
-
-- if yes: good, this will make things a bit easier
-- if lukewarm: okay, well we'll go over an example of one quickly anyway to get our feet wet.
-
-Regexes allow you to define the format of a string declaratively, and test if a string follows that format. If a string follows the structure defined by the regex, we say it "matches" that regex. So here's an example of a regex that matches an acceptable rendition of "chugga-chugga choo choo":
-
-```text
-(chugga chugga chugga chugga)+choo choo
+```
+symbolName ::= /* the structure of the text */
 ```
 
-you read this like '1 or more "chugga chugga chugga chugga"s followed by one "choo choo"'. The plus means "one or more of whatever thing is immediately before the plus" Okay, that's a bit silly so let's take a look at a rule that matches a positive integer:
+We call this a production rule. For example, you could define a production which matches a single string:
 
-```text
-0|([1-9][0-9]*)
+```
+name ::= "uqcs"
 ```
 
-Hmm.. There's more going on here. The things in square brackets are ranges, so [1-9] means "a character between 1 and 9". The asterisk is like the plus, but matches 0 or more instead of 1 or more, and that pipe operator in the middle is the or operator - i.e., the regex matches the first thing OR the second thing. So this regex reads as "either a zero or a nonzero digit followed by any number of digits.
+The format this grammar describes is exactly one string - "uqcs". Not very impressive (the grammar that is; uqcs is very impressive). Let's look at some more things we can do!
 
-We see that the regex reads left to right, and matches certain rules that define the structure of a format. Looking past the... let's be honest, completely unreadable syntax, this is actually a pretty natural way to think about the structure of language. Left to right, explaining what things are allowed in order.
+Just like in regex, we can define multiple things the production could match. Here is a grammar that matches one of three strings:
 
-[Slide of the cons of regex - say that the syntax was "designed by an insufferable code golfer"]
-
-There are some problems with regex though. Regex is not powerful enough to parse complicated structures that can't be described like this. The biggest drawback is that regexes can't handle anything recursive. For example, you can't write a regex that matches a correct json file. It's just not possible. Because json files can contain maps that contain other maps that contain more maps... How could you ever make sure that all the brackets match, for instance? So regexes aren't really powerful enough to define parsers on their own.
-
-So this is where grammars come back in.
-
-#### 1.1.2 Grammars for real this time
-
-Okay, back to grammars. A grammar is a lot like a regex, it defines the structure of text from left to right, but now we can give names to different sub-structures. I think the best way to understand this is by looking at a couple examples so let's do that.
-
-Here is a grammar that defines a list, whose elements are letters or other lists. For example, something like [a, [b, c], [d, [e]], [], f].
-
-```text
-list ::= '[' inner_list ']'
-
-inner_list ::= element { ', ' element } | empty
-
-element ::= letter | list
-
-letter ::= 'a' | 'b' | ... | 'z'
+```
+greeting ::= "hello" | "gday" | "hiii :3"
 ```
 
-Have a quick look at this and see if you can see what's going on here. We can read this in a similar fashion to the regex, but now we have these definitions on the left here - these are ways of giving names to a structure. We call them "non-terminal symbols", as they are built up with smaller parts.
+We read this as "a greeting is either hello, gday or omg hiii". We can also list things in sequence.
 
-This grammar says "a list is an open square bracket, then an inner list, then a close square bracket. These curly braces mean the same thing as an asterisk in regex, so this means "whatever is inside these braces can be repeated 0 or more times". An inner list, then, is a single element followed by any number of elements each preceeded by a comma and a space. Alternatively, an inner list may be empty. An element is either a letter or a list, and a letter here is just characters from a to z".
+```
+name ::= "uqcs"
 
-This defines the structure of our format, much like regex, except in this case we are allowed to define symbols and reuse them in other rules. We can even use these symbols recursively - notice that a list may contain any number of other lists.
+greeting ::= "hello" | "gday" | "hiii :3"
 
-TODO: Research the technical definition of grammars so you can give something more rigorous
+message ::= greeting ", " name
+```
+
+Here, the message is a greeting, followed by a comma and space, followed by a name. We just write them out in order, from left to right, just like regex. We also have this syntax, the square bracket and curly bracket:
+
+```
+// anything in the square brackets is matched 0 or 1 times.
+optionalName ::= [ "uqcs" ] // matches "" or "uqcs"
+
+// anything in the curly brackets is matched 0 or more times (unlimited).
+manyNames ::= { "uqcs" } // matches "", "uqcs", "uqcsuqcs" "uqcsuqcsuqcs", ...
+```
+
+For example, Here is how you would define an integer using a grammar:
+
+```text
+integer ::= '0' | onenine { digit }
+
+onenine ::= '1' | ... | '9'
+
+digit ::= '0' | '1' | ... | '9'
+```
+We match either just 0, or a single nonzero digit followed by any number of digits. 
+
+Here's another grammar! This parses a list of integers, surrounded by curly brackets:
+
+```
+list ::= "[" innerList "]"
+
+innerList ::= [ element {", " element} ]
+
+element ::= integer
+```
+
+and now here is that same grammar, except the list can contain *other lists* as well as integers:
+
+```
+list ::= "[" innerList "]"
+
+innerList ::= [ element {", " element} ]
+
+element ::= integer | list
+```
+
+Such a tiny change and yet now our format is so much more powerful. Now list is recursively defined, so it can match strings like `[1, [2, 3]]`. You can have any level of nesting you want, in fact.
 
 ### 1.2 Grammars into parsers
 
 So we have a way of thinking critically about our text formats. It's definitely interesting and gives us some insight about our format, but how do we turn this into a parser? Actually, there are many ways, including parser generators that will take a grammar and automatically generate a parser program for you, but today we're going to be looking at a more manual method of parsing, which is called recursive descent.
 
-Recursive descent is a method of parsing that revolves around functions. For each terminal symbol in our grammar, we write a function that parses that symbol - that is to say, it analyses a string and turns it into some data the computer can understand.
+Recursive descent is a method of parsing that revolves around functions. For each non-terminal symbol in our grammar, we write a function that parses that symbol - that is to say, it analyses a string and turns it into some data the computer can understand.
 
-The functions have this kind of type signature:
+That way, if we want to parse a grammar like this:
+
+```
+message ::= greeting comma name
+```
+
+Then we can just write a function a bit like this:
+
+```text
+function parse_message():
+    parse_greeting()
+
+    parse_comma()
+
+    parse_name()
+```
+
+We define a function for our production rule, which just consists of calls to other parser functions.
+
+The type signature for our parsers looks a bit like this:
 
 ```text
 parser(String) -> (ParsedType, String) | Error
 ```
 
 Let's break this down quickly. First, the function takes in a string (no surprises there). It then parses *as much as it can* from the string (starting at the beginning), and returns it along with whatever it *didn't* parse. Of course, parsers can also fail, and if that happens we instead return an error type.
-
-Now, you might wonder why we aren't parsing the whole string, and why we return what wasn't parsed. This allows us to chain multiple parsers together. Remember how in the definition of our grammar, we listed symbols left to right? If you want to be able to parse a grammar like this:
-
-```text
-symbol ::= a b
-```
-
-First, we parse symbol a. If that succeeded, then we run parser b on the rest of the input that wasn't consumed by a. *That's* the reason we return the unconsumed input.
 
 Let's think about an example. Imagine we had a parser that parsed integers, and we gave it the string "123". Then we should expect it to return the integer one hundred and twenty three, along with an empty string - that is to say, it consumed all the input.
 
