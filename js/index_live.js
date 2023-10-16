@@ -1,4 +1,4 @@
-import { satisfy, delimited, string, either, separatedList } from "./parsers.js";
+import { integer, delimited, string, either, separatedList } from "./parsers.js";
 
 // Parser goes here ...
 

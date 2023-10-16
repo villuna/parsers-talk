@@ -1,5 +1,28 @@
 // -- Simple parsers --
 
+// integer ::= '0' | onenine { digit }
+export function integer(input) {
+    if (input[0] == '0') {
+        return {
+            value: 0,
+            input: input.slice(1),
+        }
+    } else if (input[0] >= '1' && input[0] <= '9') {
+        let length = 1;
+
+        while (length < input.length && (input[length] >= '0' && input[length] <= '9')) {
+            length++;
+        }
+
+        return {
+            value: Number(input.slice(0, length)),
+            input: input.slice(length),
+        };
+    } else {
+        throw "integer: input does not start with a valid integer";
+    }
+}
+
 // Parses the given string, returns error otherwise
 //
 // string("hello")("hello world") == { input: " world", value: "hello"}

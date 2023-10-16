@@ -140,17 +140,7 @@ Because we're going to do it in Javascript.
 
 Javascript is a language invented in 1995 for the web browser Netscape Navigator to allow programmers to add scripts to their websites and has somehow failed upwards to become the backbone of the entire world's web infrastructure.
 
-Surprisingly, I kinda like Javascript, and we'll come to see that it's actually not such a bad choice for building a parser (if you ignore things like "performance" and if you really can't get enough of debugging runtime errors). But I legitimately do like Javascript, just, for what it was made for, which is clientside website scripts.
-
-Fun fact! I ran into a nasty bug in my code because apparently:
-
-```js
-list.push[element];
-```
-
-Isn't a syntax error, but it silently does nothing. `:)`
-
-But Javascript is perfect for this because it's very simple and it'll allow us to learn the basics before we go all fancy schmancy with a more sophisticated language.
+I quite like javascript, and since it's so simple I think it'll allow us to learn the basics before we go all fancy schmancy with a more sophisticated language.
 
 Remember a few minutes ago when I told you about this grammar that parses nested lists? Let's write a recursive descent parser to do that!
 
@@ -163,10 +153,10 @@ function parser(input/*: string*/) {
     if (success) {
         return {
             // The thing that we parsed:
-            value: /* ... */,
+            value: /* some value */,
 
             // The unconsumed input:
-            input:  /* ... */
+            input:  /* some input */
         };
     }
 
@@ -178,28 +168,34 @@ function parser(input/*: string*/) {
 
 Javascript doesn't have tuples, it basically just has maps (in fact, arrays in javascript are also basically just maps), so let's instead us a javascript object so we can give our values nice names. Also, while we could return some error type, the standard way to handle errors in js is through exceptions, so let's go with this; it'll make our code a lot simpler. Also note that you can literally throw anything in javascript! Doesn't have to be an error type. That's pretty cool. Maybe kind of terrifying too.
 
-Looking at our grammar, the simplest symbol is probably a character, so lets look at that. Writing a parser function for this is simple enough:
+Looking at our grammar, the simplest symbol is probably an integer, so lets look at that. Writing a parser function for this is simple enough:
 
 ```js
-// letter ::= "a" | "b" | ... | "z"
-function letter(input) {
-    if (input.length == 0) {
-        throw "letter: input not long enough!";
-    }
-
-    if (input[0] >= 'a' && input[0] <= 'z') {
+// integer ::= '0' | onenine { digit }
+function integer(input) {
+    if (input[0] == '0') {
         return {
-            value: input[0],
+            value: 0,
             input: input.slice(1),
         }
-    }
+    } else if (input[0] >= '1' && input[0] <= '9') {
+        let length = 1;
 
-    throw "letter: next char was not a letter!";
+        while (length < input.length && (input[length] >= '0' && input[length] <= '9')) {
+            length++;
+        }
+
+        return {
+            value: Number(input.slice(0, length)),
+            input: input.slice(length),
+        };
+    } else {
+        throw "integer: input does not start with a valid integer";
+    }
 }
 ```
 
-We just chop off the next character if it is a to z, and return it. If the string is empty or the next character isn't a letter, we just throw an error.
-For simple parsers like this, a manual approach is perfectly fine. We can do the same thing for open and close brackets too:
+This is just a manual implementation of the integer parser that we reasoned about before. There's a bit of code here but you don't need to understand this - it's just a function that parses an integer. For simple parsers like this, a manual approach is perfectly fine. We can do the same thing for open and close brackets too:
 
 ```js
 function openBracket(input) {
@@ -260,25 +256,25 @@ input = parserResult.input;
 value = parserResult.value;
 ```
 
-First we parse this open bracket, and ignore its value. Since we're using exceptions for our error handling, if this parser fails, the whole function fails, which is what we want (every parse has to succeed, in order). We then parse the inner list - we haven't defined this function yet, but you can probably assume what it does, which is parse an inner list and return its value. We then parse the closing bracket, and then return the value we parsed.
+First we parse this open bracket, and ignore its value. Since we're using exceptions for our error handling, if this parser fails, the whole function fails, which is what we want (every parser has to succeed, in order). We then parse the inner list - we haven't defined this function yet, but you can probably assume what it does, which is parse an inner list and return its value. We then parse the closing bracket, and then return the value we parsed.
 
 So that's how we parse multiple elements in a row. How about this construction, where the grammar could be one of multiple alternatives?
 
 ```text
-element ::= list | letter
+element ::= list | integer 
 ```
 
 In this case, we try each parser and return the first one that succeeded. With our exception handling, this is basically just a bunch of try catch blocks. So for the `element` symbol, which could be either a list or a character, we write this:
 
 ```js
-// element ::= list | letter
+// element ::= list | integer
 function element(input) {
     try {
         return list(input);
     } catch {}
 
     try {
-        return letter(input);
+        return integer(input);
     } catch {
         throw "element: couldn't parse as either list or char";
     }
@@ -334,7 +330,7 @@ function nonEmptyInnerList(input) {
 }
 ```
 
-I've split this up into more functions than necessary just to demonstrate the principle. We parse the same thing in a while loop until it fails, then break out of the loop.
+I've split this up into an extra function, commaThenElement, just to demonstrate the principle. We parse the same thing in a while loop until it fails, then break out of the loop.
 
 Finally, our inner list is optional; that is to say, it could be empty. And you might be able to guess that we do this with another try-catch block:
 
@@ -342,7 +338,7 @@ Finally, our inner list is optional; that is to say, it could be empty. And you 
 // innerList ::= [ nonEmptyInnerList ]
 function innerList(input) {
     try {
-        return nonEmptyInnerList(input);    
+        return nonEmptyInnerList(input);
     } catch {
         // If that failed, just parse this as nothing
         return {
@@ -357,19 +353,20 @@ I think that's all our symbols in our grammar, so let's test it out:
 
 ```js
 // ...
-console.log(JSON.Stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
+let input = "[1, 2, [3, 4], [[727]]]"
+console.log(JSON.stringify(list()))
 ```
 
 ```text
 $ node recursive_descent.js
 
-{"value":["a","b",["c","d"],[],[["e"]]],"input":"bababooey"}
+{ "value": [1,2,[3,4],[[727]]], "input": ""}
 ```
 
 And... It just works. Of course this string has extra input at the end, and so in the finished parser we'll want to check that there is no unconsumed input, but it works and it turns our string into a javascript list, with the exact structure we wanted. It also rejects anything that doesn't fit our grammar. For instance, unmatched brackets:
 
 ```js
-console.log(JSON.Stringify(list("[a, b")));
+console.log(JSON.Stringify(list("[1, 2")));
 ```
 
 ```text
@@ -384,7 +381,7 @@ closeBracket: expected "]"
 And yeah, we even get a good error message - we expected a close bracket. What if one of our elements is not a lowercase letter?
 
 ```js
-console.log(JSON.Stringify(list("[A, b]")));
+console.log(JSON.Stringify(list("[hi!!!, 2]")));
 ```
 
 ```text
@@ -396,7 +393,7 @@ $ node js/recursive_descent.js
 closeBracket: expected "]"
 ```
 
-Hm. This isn't a helpful error message, it's still telling us we expected a close bracket. There is actually a good reason for this - when we tried to parse the inner list, it would have failed to parse any elements, then concluded that the list must be empty, so then it tried to parse a close bracket. Since 'A' is not a close bracket, this is the error message we get. That's one of the limits of our somewhat unsophisticated error handling, but on the bright side we still do get an error because it didn't fit our grammar.
+Hm. This isn't a helpful error message, it's still telling us we expected a close bracket. There is actually a good reason for this - when we tried to parse the inner list, it would have failed to parse any elements, then concluded that the list must be empty, so then it tried to parse a close bracket. Since 'hi!!!' is not a close bracket, this is the error message we get. That's one of the limits of our somewhat unsophisticated error handling, but on the bright side we still do get an error because it didn't fit our grammar.
 
 ### 2.2 - Don't repeat yourself
 
@@ -712,6 +709,8 @@ And then we'd do something with the output.
 
 Finally, we've been talking about recursive descent, but that's not the only method of parsing that exists. There are soo many more, so let's go through a quick "who would win". So without further ado - go team combinators!!
 
+(BY THE WAY IF YOU DONT HAVE ENOUGH TIME IN THE TALK JUST SKIP THIS ONE ITS TOTALLY UNNECESSARY)
+
 #### 4.3.1 - Combinators vs Manual parsing
 
 The obvious alternative to a formal method of parsing is no formal method of parsing. This is a perfectly fine way of doing things for many applications, and it's probably what you're most used to. When I say "manual parsing" what I mean is using basic string manipulation functions.
@@ -765,8 +764,8 @@ Okay. I hope this has given you a lot to think about, and hopefully now you're r
 
 - Invent your own configuration language and parse it (creative!)
 - A parser that analyses logical expressions and prints out their truth table (mathematical!!)
-- Your own dialect of the lisp programming language ((((((((Impressive)))))))!!!)
-- A parser that recognises the rules and starting state of a turing machine and (turing complete!!!!)
+- Your own dialect of the lisp programming language ((((((((SICP approved)))))))!!!)
+- A parser that recognises the rules and starting state of a turing machine and returns its finished state, or an error if it doesn't halt (turing BTFO!!!!)
 
 But before we wrap up, I'd like to just show one more language.
 

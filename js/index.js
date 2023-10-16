@@ -1,18 +1,18 @@
-import { satisfy, delimited, string, either, separatedList } from "./parsers.js";
+import { integer , delimited, string, either, separatedList } from "./parsers.js";
 
 
 // Parser goes here ...
-var letter = satisfy((c) => c >= 'a' && c <= 'z');
-var element = either(letter, list);
+var element = either(integer, list);
 
 function list(input) {
-    return delimited(
+    let parser = delimited(
         string("["), 
         separatedList(element, string(", ")), 
         string("]")
-    )(input);
-}
+    );
 
+    return parser(input);
+}
 
 // Html stuff so that the website works
 let parser = list;

@@ -1,17 +1,24 @@
-// letter ::= 'a' | 'b' | ... | 'z'
-function letter(input) {
-    if (input.length == 0) {
-        throw "letter: input not long enough!";
-    }
-
-    if (input[0] >= 'a' && input[0] <= 'z') {
+// integer ::= '0' | onenine { digit }
+function integer(input) {
+    if (input[0] == '0') {
         return {
-            value: input[0],
+            value: 0,
             input: input.slice(1),
         }
-    }
+    } else if (input[0] >= '1' && input[0] <= '9') {
+        let length = 1;
 
-    throw "letter: next char was not a letter!";
+        while (length < input.length && (input[length] >= '0' && input[length] <= '9')) {
+            length++;
+        }
+
+        return {
+            value: Number(input.slice(0, length)),
+            input: input.slice(length),
+        };
+    } else {
+        throw "integer: input does not start with a valid integer";
+    }
 }
 
 // nonEmptyInnerList ::= element {", " element}
@@ -91,19 +98,17 @@ function list(input) {
     }
 }
 
-// element ::= list | letter
+// element ::= list | integer
 function element(input) {
     try {
         return list(input);
     } catch {}
 
     try {
-        return letter(input);
+        return integer(input);
     } catch {
         throw "element: couldn't parse as either list or char";
     }
 }
 
-console.log(JSON.stringify(list("[a, b, [c, d], [], [[e]]]bababooey")))
-//console.log(JSON.Stringify(list("[a, b")))
-//console.log(JSON.Stringify(list("[A, b]")))
+console.log(JSON.stringify(list("[1, 2, [3, 4], [[727]]]")))
