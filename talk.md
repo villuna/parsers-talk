@@ -653,15 +653,6 @@ fn parser(input: I) -> Result<(I, O), Err<E>> {
 }
 ```
 
-```rust
-fn read_to_string(filename: String) -> Result<String, std::io::Error>;
-
-match read_to_string("talk.md") {
-    Ok(string) => println!("the script for the talk!: {string}"),
-    Err(e) => eprintln!("error: {e}"),
-}
-```
-
 These types here are generic parameters - we're saying that they can be literally anything. Also I've written out their full names like this, but from now on we'll just be using a single capital letter for generic types:
 
 ```rust
@@ -682,6 +673,27 @@ And notice now we can define our own types for error handling. This gives us a v
 
 Okay, it's time to dive into documentation! https://docs.rs/nom/latest/nom/index.html
 
+```rust
+assert_eq!(
+    (letter, integer).parse("a12"),
+    
+    Ok((
+        "", // input
+        ('a', 12) // value
+    ))
+);
+```
+
+```rust
+assert_eq(
+    many0((letter, integer))("a12b34"),
+    Ok((
+        "", // input
+        vec![('a', 12), ('b', 34)]  // value
+    ))
+);
+```
+
 If I have time, I would like to write a simple .ini parser with you, but if I have no time I'll just explore a prewritten one or maybe my toy programming language interpreter.
 
 ## 4. Loose ends and honourary mentions
@@ -695,6 +707,10 @@ What we have done today is a style of parsing that was pioneered in the scope of
 - Little spiel about what functional programming is
 - There are tradeoffs for writing this style in non-fp languages, for instance you get to write imperative code but you don't get the nice things like monads or out-of-order evaluation
 - Would you like to know more? Take COMP3400
+
+```haskell
+message = (,,) <$> greeting <*> string " ," <*> name
+```
 
 ### 4.2 - Programming Languages
 
